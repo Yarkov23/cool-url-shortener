@@ -29,7 +29,7 @@ public class RedisService {
     }
 
     public void saveOriginalUrlMapping(String originalUrl, String shortenedKey) {
-        redisTemplate.opsForValue().set(ORIG_URL_PREFIX + originalUrl, shortenedKey, URL_EXPIRE_TIME, TimeUnit.DAYS);
+        redisTemplate.opsForValue().set(ORIG_URL_PREFIX + originalUrl, shortenedKey, URL_EXPIRE_TIME, TimeUnit.HOURS);
     }
 
     public String getShortenedKeyFromOriginalUrl(String originalUrl) {

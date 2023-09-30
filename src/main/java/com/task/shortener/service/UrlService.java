@@ -3,6 +3,7 @@ package com.task.shortener.service;
 
 import com.task.shortener.entity.Url;
 import com.task.shortener.repository.UrlRepository;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +24,10 @@ public class UrlService {
         this.shorteningService = shorteningService;
     }
 
-    public Url getOrCreateShortenedUrl(String originalUrl) {
+    public String getShortenedUrl(String originalUrl) {
         logger.info("Attempting to fetch or create shortened URL for: {}", originalUrl);
 
-        if (originalUrl == null || originalUrl.trim().isEmpty()) {
+        if (StringUtils.isEmpty(originalUrl)) {
             throw new IllegalArgumentException("Original URL must not be null or empty");
         }
 
@@ -34,7 +35,7 @@ public class UrlService {
 
         if (shortenedKey != null) {
             logger.debug("Found shortened URL in cache for: {}", originalUrl);
-            return buildUrl(originalUrl, shortenedKey);
+            return shortenedKey;
         }
 
         Url url = urlRepository.findByOriginalUrl(originalUrl);
@@ -44,19 +45,19 @@ public class UrlService {
 
         cacheUrlMappings(url.getOriginalUrl(), url.getShortenedUrl());
         logger.info("Successfully fetched or created shortened URL for: {}", originalUrl);
-        return url;
+        return url.getShortenedUrl();
     }
 
-    public Url getOriginalUrl(String shortenedUrl) {
+    public String getOriginalUrl(String shortenedUrl) {
         logger.info("Attempting to resolve original URL for: {}", shortenedUrl);
-        if (shortenedUrl == null || shortenedUrl.trim().isEmpty()) {
+        if (StringUtils.isEmpty(shortenedUrl)) {
             throw new IllegalArgumentException("Shortened URL must not be null or empty");
         }
 
         String originalUrl = redisService.getOriginalUrlFromShortened(shortenedUrl);
         if (originalUrl != null) {
             logger.debug("Found original URL in cache for: {}", shortenedUrl);
-            return buildUrl(originalUrl, shortenedUrl);
+            return originalUrl;
         }
 
         Url url = urlRepository.findByShortenedUrl(shortenedUrl);
@@ -65,28 +66,20 @@ public class UrlService {
             cacheUrlMappings(url.getOriginalUrl(), shortenedUrl);
         }
 
-        logger.info("Successfully resolved original URL for: {}", shortenedUrl);
-        return url;
+        logger.info("Resolved original URL for: {}", shortenedUrl);
+
+        return url != null ? url.getOriginalUrl() : "";
     }
 
     private Url saveUrl(String originalUrl) {
         logger.info("Saving original URL to database: {}", originalUrl);
 
         String shortenedUrl = shorteningService.generateShortenedUrl();
-        Url url = new Url();
-        url.setOriginalUrl(originalUrl);
-        url.setShortenedUrl(shortenedUrl);
+        Url url = new Url(originalUrl, shortenedUrl);
         urlRepository.save(url);
         cacheUrlMappings(originalUrl, shortenedUrl);
 
         logger.info("Successfully saved URL: {}", originalUrl);
-        return url;
-    }
-
-    private Url buildUrl(String original, String shortened) {
-        Url url = new Url();
-        url.setOriginalUrl(original);
-        url.setShortenedUrl(shortened);
         return url;
     }
 
